@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>3D Misket – Olasılık Simülasyonu</title>
+<style>
+body{
+  margin:0;
+  background:#0c0f26;
+  color:#fff;
+  font-family:system-ui;
+}
+.app{
+  max-width:1200px;
+  margin:auto;
+  padding:12px 16px 18px;
+  position:relative;
+}
+h1{text-align:center;margin:8px 0 12px}
+
+.main{
+  display:grid;
+  grid-template-columns:1fr 420px;
+  gap:16px;
+}
+
+/* FULLSCREEN BUTON */
+.fullscreen-btn{
+  position:absolute;
+  top:10px; left:10px;
+  z-index:5;
+  padding:8px 12px;
+  border-radius:10px;
+  border:0;
+  background:#2328a0;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* ÇUVAL */
+.scene{perspective:1000px; display:flex; justify-content:center;}
+.bag{
+  width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle at 50% 35%, #8a623d,#3a2415);
+  transform:rotateX(60deg);
+  position:relative;
+  overflow:hidden;
+  box-shadow: inset 0 30px 40px rgba(255,255,255,.15),
+              inset 0 -40px 50px rgba(0,0,0,.7),
+              0 50px 80px rgba(0,0,0,.8);
+}
+.marble{
+  position:absolute;
+  width:24px;height:24px;border-radius:50%;
+  box-shadow: inset -4px -6px 8px rgba(0,0,0,.4),
+              inset 4px 4px 6px rgba(255,255,255,.6);
+}
+
+/* EL */
+.hand{
+  margin:18px auto 0;
+  width:180px;height:120px;
+  background:linear-gradient(#d8b08c,#b98963);
+  border-radius:90px 90px 120px 120px;
+  position:relative;
+}
+.picked{
+  position:absolute;
+  left:50%; top:-70px;
+  transform:translateX(-50%);
+  width:64px;height:64px;
+  border-radius:50%;
+  display:none;
+  box-shadow: inset -8px -10px 16px rgba(0,0,0,.45),
+              inset 8px 8px 14px rgba(255,255,255,.6),
+              0 18px 35px rgba(0,0,0,.7);
+}
+
+/* TABLO */
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#161a45;
+  border-radius:12px;
+  overflow:hidden;
+}
+th,td{padding:8px;text-align:center}
+th{background:#2328a0}
+tr:nth-child(even){background:#1c2060}
+
+button.draw{
+  margin:12px auto 0;
+  display:block;
+  padding:14px 30px;
+  font-size:18px;
+  font-weight:800;
+  border-radius:14px;
+  border:0;
+  cursor:pointer;
+  background:#3a41c9;
+  color:#fff;
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Tam Ekran</button>
+
+  <h1>3D Misket Çuvalı – Ağırlıklı Olasılık</h1>
+
+  <div class="main">
+    <div>
+      <div class="scene">
+        <div class="bag" id="bag"></div>
+      </div>
+      <div class="hand">
+        <div class="picked" id="picked"></div>
+      </div>
+      <button class="draw" onclick="draw()">ÇEK</button>
+    </div>
+
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Renk</th>
+            <th>Miktar</th>
+            <th>Olasılık %</th>
+            <th>Çekilen</th>
+          </tr>
+        </thead>
+        <tbody id="table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const marbles = [
+ {name:"Kırmızı", color:"#ff3b3b", count:40, drawn:0},
+ {name:"Mavi", color:"#3b6bff", count:30, drawn:0},
+ {name:"Yeşil", color:"#3bff6b", count:25, drawn:0},
+ {name:"Sarı", color:"#ffe13b", count:20, drawn:0},
+ {name:"Mor", color:"#b43bff", count:15, drawn:0},
+ {name:"Turuncu", color:"#ff8c3b", count:10, drawn:0},
+ {name:"Pembe", color:"#ff3bd7", count:8, drawn:0},
+ {name:"Turkuaz", color:"#3bfff5", count:6, drawn:0},
+ {name:"Açık Yeşil", color:"#9bff3b", count:4, drawn:0},
+ {name:"Beyaz", color:"#ffffff", count:2, drawn:0}
+];
+
+const bag=document.getElementById("bag");
+const table=document.getElementById("table");
+const picked=document.getElementById("picked");
+const app=document.getElementById("app");
+
+const total = marbles.reduce((a,b)=>a+b.count,0);
+
+/* Çuval dolu */
+marbles.forEach(m=>{
+  for(let i=0;i<m.count;i++){
+    const d=document.createElement("div");
+    d.className="marble";
+    d.style.background=m.color;
+    d.style.left=Math.random()*380+"px";
+    d.style.top=Math.random()*380+"px";
+    bag.appendChild(d);
+  }
+});
+
+function updateTable(){
+  table.innerHTML="";
+  marbles.forEach(m=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${m.name}</td>
+      <td>${m.count}</td>
+      <td>${((m.count/total)*100).toFixed(1)}</td>
+      <td>${m.drawn}</td>`;
+    table.appendChild(tr);
+  });
+}
+updateTable();
+
+function weightedRandom(){
+  let r=Math.random()*total;
+  for(const m of marbles){
+    if(r<m.count) return m;
+    r-=m.count;
+  }
+}
+
+function draw(){
+  const m=weightedRandom();
+  m.drawn++;
+  picked.style.background=m.color;
+  picked.style.display="block";
+  picked.animate([
+    {transform:"translate(-50%,60px) scale(0.3)",opacity:0},
+    {transform:"translate(-50%,-10px) scale(1)",opacity:1}
+  ],{duration:650,easing:"ease-out"});
+  updateTable();
+}
+
+/* FULLSCREEN */
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    app.requestFullscreen();
+  }else{
+    document.exitFullscreen();
+  }
+}
+</script>
+
+</body>
+</html>
